@@ -106,21 +106,96 @@ ORDER BY point, date;
 -- - тип продукта (type) в порядке PC, Laptop, Printer.
 -- Если некий производитель выпускает несколько типов продукции, то выводить его имя только в первой строке;
 -- остальные строки для ЭТОГО производителя должны содержать пустую строку символов ('').
-SELECT row_number() over (ORDER BY maker, CASE
-                                              WHEN type = 'PC' then 1
-                                              WHEN type = 'Laptop' then 2
-                                              else 3
-    end),
-       maker,
+Select row_number() over () as row_number,
+       Case
+           when lag(maker, 1) over (order by maker, case
+                                                        when type = 'PC' then 1
+                                                        when type = 'Laptop' then 2
+                                                        when type = 'Printer' then 3 end) = maker then ''
+           Else maker
+           End              as maker,
        type
-FROM (SELECT DISTINCT maker, type
-      FROM product
-      ORDER BY maker, type) t1
-ORDER BY maker,
-         CASE
-             WHEN type = 'PC' then 1
-             WHEN type = 'Laptop' then 2
-             else 3
-             end
+From (select distinct maker, type from product) t1
+Order by row_number
 
+-- 66. БД "Аэрофлот"
+-- Для всех дней в интервале с 01/04/2003 по 07/04/2003 определить число рейсов из Rostov с пассажирами на борту.
+-- Вывод: дата, количество рейсов.
+-- ошибка в базе
+WITH t1 AS (SELECT generate_series('2003-04-01'::timestamp, '2003-07-04'::timestamp,
+                                   '1 day'::interval)::date as all_datas),
+     t2 AS
+         (SELECT COUNT(DISTINCT trip_no) as number_flights,
+                 time_out::date
+          FROM trip
+          WHERE town_from = 'Rostov'
+            and trip_no IN (SELECT DISTINCT trip_no
+                            FROM pass_in_trip)
+          GROUP BY time_out::date)
+SELECT all_datas, coalesce(number_flights, 0) as number_flights_in_day
+FROM t1
+         LEFT JOIN t2 on t1.all_datas = t2.time_out;
+
+--67. БД "Аэрофлот"
+-- Найти количество маршрутов, которые обслуживаются наибольшим числом рейсов.
+-- Замечания.
+-- 1) A - B и B - A считать РАЗНЫМИ маршрутами.
+-- 2) Использовать только таблицу Trip
+WITH t1 AS (SELECT town_from, town_to, COUNT(DISTINCT trip_no) AS num_reises
+            FROM trip
+            GROUP BY town_from, town_to)
+SELECT count(num_reises)
+FROM t1
+WHERE num_reises = (SELECT max(num_reises) FROM t1)
+
+--68. БД "Аэрофлот"
+-- Найти количество маршрутов, которые обслуживаются наибольшим числом рейсов.
+-- Замечания.
+-- 1) A - B и B - A считать ОДНИМ И ТЕМ ЖЕ маршрутом.
+-- 2) Использовать только таблицу Trip
+WITH t1 AS (SELECT trip_no, town_from, town_to
+            FROM trip
+            UNION ALL
+            SELECT trip_no, town_to, town_from
+            FROM trip),
+     t2 AS (SELECT town_from, town_to, COUNT(DISTINCT trip_no) as num_reises
+            FROM t1
+            GROUP BY town_from, town_to)
+SELECT COUNT(*) / 2 as max_reises
+FROM t2
+WHERE num_reises = (SELECT max(num_reises) FROM t2)
+
+-- 2 способ
+with tt1 as
+    (select trip_no                                                       tn,
+            case when town_from < town_to then town_from else town_to end tf,
+            case when town_from < town_to then town_to else town_from end tt
+     from Trip)
+   , tt2 as
+        (select count(tn) qty from tt1 group by tf, tt)
+   , tt3 as
+    (select count(tn) mqt from tt1 group by tf, tt having count(tn) = (select max(qty) from tt2))
+
+select count(mqt) qt
+from tt3
+
+--68. БД "Вторсырье"
+-- По таблицам Income и Outcome для каждого пункта приема найти остатки денежных средств на конец каждого дня,
+-- в который выполнялись операции по приходу и/или расходу на данном пункте.
+-- Учесть при этом, что деньги не изымаются, а остатки/задолженность переходят на следующий день.
+-- Вывод: пункт приема, день в формате "dd/mm/yyyy", остатки/задолженность на конец этого дня.
+-- p.s Приведенное ниже решение система не принимает, т.к. в задании подразумевается неупорядоченный по возрастанию дат вывод итогов.
+SElECT point,
+       date::date,
+       SUM(COALESCE(total_inc, 0) - COALESCE(total_out, 0))
+       OVER (PARTITION BY point ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM (SELECT point, date, sum(inc) as total_inc
+      FROM income
+      GROUP BY point, date
+      ORDER BY point, date) t1
+         FULL OUTER JOIN
+     (SELECT point, date, sum(out) as total_out
+      FROM Outcome
+      GROUP BY point, date
+      ORDER BY point, date) t2 USING (point, date)
 
