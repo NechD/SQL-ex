@@ -116,7 +116,7 @@ Select row_number() over () as row_number,
            End              as maker,
        type
 From (select distinct maker, type from product) t1
-Order by row_number
+Order by row_number;
 
 -- 66. БД "Аэрофлот"
 -- Для всех дней в интервале с 01/04/2003 по 07/04/2003 определить число рейсов из Rostov с пассажирами на борту.
@@ -146,7 +146,7 @@ WITH t1 AS (SELECT town_from, town_to, COUNT(DISTINCT trip_no) AS num_reises
             GROUP BY town_from, town_to)
 SELECT count(num_reises)
 FROM t1
-WHERE num_reises = (SELECT max(num_reises) FROM t1)
+WHERE num_reises = (SELECT max(num_reises) FROM t1);
 
 --68. БД "Аэрофлот"
 -- Найти количество маршрутов, которые обслуживаются наибольшим числом рейсов.
@@ -163,7 +163,7 @@ WITH t1 AS (SELECT trip_no, town_from, town_to
             GROUP BY town_from, town_to)
 SELECT COUNT(*) / 2 as max_reises
 FROM t2
-WHERE num_reises = (SELECT max(num_reises) FROM t2)
+WHERE num_reises = (SELECT max(num_reises) FROM t2);
 
 -- 2 способ
 with tt1 as
@@ -177,9 +177,9 @@ with tt1 as
     (select count(tn) mqt from tt1 group by tf, tt having count(tn) = (select max(qty) from tt2))
 
 select count(mqt) qt
-from tt3
+from tt3;
 
---68. БД "Вторсырье"
+--69. БД "Вторсырье"
 -- По таблицам Income и Outcome для каждого пункта приема найти остатки денежных средств на конец каждого дня,
 -- в который выполнялись операции по приходу и/или расходу на данном пункте.
 -- Учесть при этом, что деньги не изымаются, а остатки/задолженность переходят на следующий день.
@@ -197,5 +197,52 @@ FROM (SELECT point, date, sum(inc) as total_inc
      (SELECT point, date, sum(out) as total_out
       FROM Outcome
       GROUP BY point, date
-      ORDER BY point, date) t2 USING (point, date)
+      ORDER BY point, date) t2 USING (point, date);
+
+--70. БД "Корабли"
+-- Укажите сражения, в которых участвовало по меньшей мере три корабля одной и той же страны.
+WITH t1 AS
+         (SELECT ship, battle, country
+          FROM outcomes
+                   INNER JOIN ships ON Ships.name = Outcomes.ship
+                   INNER JOIN Classes USING (Class)
+          UNION
+          SELECT ship, battle, country
+          FROM outcomes
+                   INNER JOIN Classes ON Classes.class = Outcomes.ship)
+SELECT DISTINCT battle
+FROM t1
+GROUP BY country, battle
+HAVING COUNT(DISTINCT ship) >= 3;
+
+--71. БД "Компьютерная фирма"
+-- Найти тех производителей ПК, все модели ПК которых имеются AS
+SELECT DISTINCT maker
+FROM product p1
+WHERE type = 'PC'
+  AND NOT EXISTS(SELECT model
+                 FROM product p2
+                 WHERE type = 'PC'
+                   and p2.maker = p1.maker
+                 EXCEPT
+                 SELECT pc.model
+                 FROM PC
+    );
+
+-- 72. БД 'Аэрофлот'
+-- Среди тех, кто пользуется услугами только какой-нибудь одной компании, определить имена разных пассажиров,
+-- летавших чаще других.
+-- Вывести: имя пассажира и число полетов.
+WITH t1 AS
+         (SELECT id_psg, COUNT(trip_no) as count_flights
+          FROM pass_in_trip
+                   INNER JOIN trip USING (trip_no)
+          GROUP BY id_psg
+          HAVING COUNT(DISTINCT id_comp) = 1
+          ORDER BY count_flights DESC)
+SELECT DISTINCT name, count_flights
+FROM t1
+         INNER JOIN passenger USING (id_psg)
+WHERE count_flights = (SELECT MAX(count_flights) FROM t1)
+
 
