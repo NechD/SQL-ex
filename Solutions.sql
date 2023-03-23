@@ -4,12 +4,12 @@ SELECT point,
        CASE
            WHEN total_out IS NOT NULL THEN total_inc - total_out
            ELSE total_inc
-           END as result
-FROM (SELECT point, SUM(inc) as total_inc
+           END AS result
+FROM (SELECT point, SUM(inc) AS total_inc
       FROM Income_o
       GROUP BY point) t1
          LEFT JOIN
-     (SELECT point, SUM(out) as total_out
+     (SELECT point, SUM(out) AS total_out
       FROM Outcome_o
       GROUP BY point) t2 USING (point)
 ORDER BY point;
@@ -24,12 +24,12 @@ SELECT point,
            WHEN total_out IS NOT NULL THEN total_inc - total_out
            ELSE total_inc
            END AS result
-FROM (SELECT point, sum(inc) as total_inc
+FROM (SELECT point, SUM(inc) AS total_inc
       FROM income_o
       WHERE date < '15/04/2001'
       GROUP BY point) t1
          FULL OUTER JOIN
-     (SELECT point, sum(out) as total_out
+     (SELECT point, SUM(out) AS total_out
       FROM outcome_o
       WHERE date < '15/04/2001'
       GROUP BY point) t2 USING (point)
@@ -37,21 +37,21 @@ ORDER BY point;
 
 
 -- 61. Посчитать остаток денежных средств на всех пунктах приема для базы данных с отчетностью не чаще одного раза в день.
-SELECT SUM(total_inc) as total_result
-FROM (SELECT SUM(inc) as total_inc
+SELECT SUM(total_inc) AS total_result
+FROM (SELECT SUM(inc) AS total_inc
       FROM Income_o
       UNION ALL
-      SELECT SUM(out) * -1 as total_out
+      SELECT SUM(out) * -1 AS total_out
       FROM Outcome_o) t1;
 
 -- 62. Посчитать остаток денежных средств на всех пунктах приема на начало дня 15/04/01
 -- для базы данных с отчетностью не чаще одного раза в день.
-SELECT SUM(total_inc) as total_result
-FROM (SELECT SUM(inc) as total_inc
+SELECT SUM(total_inc) AS total_result
+FROM (SELECT SUM(inc) AS total_inc
       FROM Income_o
       WHERE date < '15/04/2001'
       UNION ALL
-      SELECT SUM(out) * -1 as total_out
+      SELECT SUM(out) * -1 AS total_out
       FROM Outcome_o
       WHERE date < '15/04/2001') t1;
 
@@ -61,7 +61,7 @@ FROM (SELECT SUM(inc) as total_inc
 SELECT name
 FROM (SELECT DISTINCT p.id_psg, name
       FROM pass_in_trip
-               LEFT JOIN passenger p on pass_in_trip.id_psg = p.id_psg
+               LEFT JOIN passenger p ON pass_in_trip.id_psg = p.id_psg
       GROUP BY p.id_psg, place
       HAVING COUNT(*) > 1) t1;
 
@@ -86,18 +86,18 @@ SELECT point,
        COALESCE(total_inc, total_out) AS result
 FROM (SELECT point,
              date,
-             sum(inc) as total_inc
+             SUM(inc) AS total_inc
       FROM Income
       GROUP BY point, date) t1
          FULL OUTER JOIN
      (SELECT point,
              date,
-             sum(out) as total_out
+             SUM(out) AS total_out
       FROM outcome
       GROUP BY point, date) t2
      USING (point, date)
 WHERE total_inc IS NULL
-   or total_out IS NULL
+   OR total_out IS NULL
 ORDER BY point, date;
 
 -- 65. БД "Компьютерная фирма"
@@ -106,35 +106,35 @@ ORDER BY point, date;
 -- - тип продукта (type) в порядке PC, Laptop, Printer.
 -- Если некий производитель выпускает несколько типов продукции, то выводить его имя только в первой строке;
 -- остальные строки для ЭТОГО производителя должны содержать пустую строку символов ('').
-Select row_number() over () as row_number,
-       Case
-           when lag(maker, 1) over (order by maker, case
-                                                        when type = 'PC' then 1
-                                                        when type = 'Laptop' then 2
-                                                        when type = 'Printer' then 3 end) = maker then ''
-           Else maker
-           End              as maker,
+SELECT ROW_NUMBER() OVER () AS row_number,
+       CASE
+           WHEN LAG(maker, 1) OVER (ORDER BY maker, CASE
+                                                        WHEN type = 'PC' THEN 1
+                                                        WHEN type = 'Laptop' THEN 2
+                                                        WHEN type = 'Printer' THEN 3 END) = maker THEN ''
+           ELSE maker
+           END              AS maker,
        type
-From (select distinct maker, type from product) t1
-Order by row_number;
+FROM (SELECT DISTINCT maker, type FROM product) t1
+ORDER BY row_number;
 
 -- 66. БД "Аэрофлот"
 -- Для всех дней в интервале с 01/04/2003 по 07/04/2003 определить число рейсов из Rostov с пассажирами на борту.
 -- Вывод: дата, количество рейсов.
 -- ошибка в базе
-WITH t1 AS (SELECT generate_series('2003-04-01'::timestamp, '2003-07-04'::timestamp,
-                                   '1 day'::interval)::date as all_datas),
+WITH t1 AS (SELECT GENERATE_SERIES('2003-04-01'::timestamp, '2003-07-04'::timestamp,
+                                   '1 day'::interval)::date AS all_datas),
      t2 AS
-         (SELECT COUNT(DISTINCT trip_no) as number_flights,
+         (SELECT COUNT(DISTINCT trip_no) AS number_flights,
                  time_out::date
           FROM trip
           WHERE town_from = 'Rostov'
-            and trip_no IN (SELECT DISTINCT trip_no
+            AND trip_no IN (SELECT DISTINCT trip_no
                             FROM pass_in_trip)
           GROUP BY time_out::date)
-SELECT all_datas, coalesce(number_flights, 0) as number_flights_in_day
+SELECT all_datas, COALESCE(number_flights, 0) AS number_flights_in_day
 FROM t1
-         LEFT JOIN t2 on t1.all_datas = t2.time_out;
+         LEFT JOIN t2 ON t1.all_datas = t2.time_out;
 
 --67. БД "Аэрофлот"
 -- Найти количество маршрутов, которые обслуживаются наибольшим числом рейсов.
@@ -144,9 +144,9 @@ FROM t1
 WITH t1 AS (SELECT town_from, town_to, COUNT(DISTINCT trip_no) AS num_reises
             FROM trip
             GROUP BY town_from, town_to)
-SELECT count(num_reises)
+SELECT COUNT(num_reises)
 FROM t1
-WHERE num_reises = (SELECT max(num_reises) FROM t1);
+WHERE num_reises = (SELECT MAX(num_reises) FROM t1);
 
 --68. БД "Аэрофлот"
 -- Найти количество маршрутов, которые обслуживаются наибольшим числом рейсов.
@@ -158,26 +158,26 @@ WITH t1 AS (SELECT trip_no, town_from, town_to
             UNION ALL
             SELECT trip_no, town_to, town_from
             FROM trip),
-     t2 AS (SELECT town_from, town_to, COUNT(DISTINCT trip_no) as num_reises
+     t2 AS (SELECT town_from, town_to, COUNT(DISTINCT trip_no) AS num_reises
             FROM t1
             GROUP BY town_from, town_to)
-SELECT COUNT(*) / 2 as max_reises
+SELECT COUNT(*) / 2 AS max_reises
 FROM t2
-WHERE num_reises = (SELECT max(num_reises) FROM t2);
+WHERE num_reises = (SELECT MAX(num_reises) FROM t2);
 
 -- 2 способ
-with tt1 as
-    (select trip_no                                                       tn,
-            case when town_from < town_to then town_from else town_to end tf,
-            case when town_from < town_to then town_to else town_from end tt
-     from Trip)
-   , tt2 as
-        (select count(tn) qty from tt1 group by tf, tt)
-   , tt3 as
-    (select count(tn) mqt from tt1 group by tf, tt having count(tn) = (select max(qty) from tt2))
+WITH tt1 AS
+    (SELECT trip_no                                                       tn,
+            CASE WHEN town_from < town_to THEN town_from ELSE town_to END tf,
+            CASE WHEN town_from < town_to THEN town_to ELSE town_from END tt
+     FROM Trip)
+   , tt2 AS
+        (SELECT COUNT(tn) qty FROM tt1 GROUP BY tf, tt)
+   , tt3 AS
+    (SELECT COUNT(tn) mqt FROM tt1 GROUP BY tf, tt HAVING COUNT(tn) = (SELECT MAX(qty) FROM tt2))
 
-select count(mqt) qt
-from tt3;
+SELECT COUNT(mqt) qt
+FROM tt3;
 
 --69. БД "Вторсырье"
 -- По таблицам Income и Outcome для каждого пункта приема найти остатки денежных средств на конец каждого дня,
@@ -185,16 +185,16 @@ from tt3;
 -- Учесть при этом, что деньги не изымаются, а остатки/задолженность переходят на следующий день.
 -- Вывод: пункт приема, день в формате "dd/mm/yyyy", остатки/задолженность на конец этого дня.
 -- p.s Приведенное ниже решение система не принимает, т.к. в задании подразумевается неупорядоченный по возрастанию дат вывод итогов.
-SElECT point,
+SELECT point,
        date::date,
        SUM(COALESCE(total_inc, 0) - COALESCE(total_out, 0))
        OVER (PARTITION BY point ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
-FROM (SELECT point, date, sum(inc) as total_inc
+FROM (SELECT point, date, SUM(inc) AS total_inc
       FROM income
       GROUP BY point, date
       ORDER BY point, date) t1
          FULL OUTER JOIN
-     (SELECT point, date, sum(out) as total_out
+     (SELECT point, date, SUM(out) AS total_out
       FROM Outcome
       GROUP BY point, date
       ORDER BY point, date) t2 USING (point, date);
@@ -223,7 +223,7 @@ WHERE type = 'PC'
   AND NOT EXISTS(SELECT model
                  FROM product p2
                  WHERE type = 'PC'
-                   and p2.maker = p1.maker
+                   AND p2.maker = p1.maker
                  EXCEPT
                  SELECT pc.model
                  FROM PC
@@ -234,7 +234,7 @@ WHERE type = 'PC'
 -- летавших чаще других.
 -- Вывести: имя пассажира и число полетов.
 WITH t1 AS
-         (SELECT id_psg, COUNT(trip_no) as count_flights
+         (SELECT id_psg, COUNT(trip_no) AS count_flights
           FROM pass_in_trip
                    INNER JOIN trip USING (trip_no)
           GROUP BY id_psg
@@ -243,6 +243,90 @@ WITH t1 AS
 SELECT DISTINCT name, count_flights
 FROM t1
          INNER JOIN passenger USING (id_psg)
-WHERE count_flights = (SELECT MAX(count_flights) FROM t1)
+WHERE count_flights = (SELECT MAX(count_flights) FROM t1);
 
+-- 73. БД 'Корабли'
+-- Для каждой страны определить сражения, в которых не участвовали корабли данной страны.
+-- Вывод: страна, сражение
+WITH t1 AS (SELECT DISTINCT country, battle
+            FROM outcomes
+                     LEFT JOIN ships ON outcomes.ship = ships.name
+                     INNER JOIN classes ON ships.class = classes.class OR outcomes.ship = classes.class
+            GROUP BY country, battle)
+SELECT country, name
+FROM battles,
+     classes
+EXCEPT
+SELECT country, battle
+FROM t1;
 
+-- 74. БД 'Корабли'
+-- Вывести все классы кораблей России (Russia).
+-- Если в базе данных нет классов кораблей России, вывести классы для всех имеющихся в БД стран.
+-- Вывод: страна, класс
+SELECT country, class
+FROM classes
+WHERE CASE
+          WHEN EXISTS(SELECT class FROM classes WHERE country = 'Russia') THEN country = 'Russia'
+          ELSE country <> 'Russia'
+          END;
+
+-- 75. БД "Компьютерная фирма"
+-- Для тех производителей, у которых есть продукты с известной ценой хотя бы в одной из таблиц Laptop, PC, Printer
+-- найти максимальные цены на каждый из типов продукции.
+-- Вывод: maker, максимальная цена на ноутбуки, максимальная цена на ПК, максимальная цена на принтеры.
+-- Для отсутствующих продуктов/цен использовать NULL.
+WITH t1 AS (SELECT p.maker,
+                   p.model,
+                   pc.price AS pcprice,
+                   lt.price AS ltprice,
+                   pr.price AS prprice
+            FROM product p
+                     LEFT JOIN laptop lt ON
+                p.model = lt.model
+                     LEFT JOIN pc ON p.model = pc.model
+                     LEFT JOIN printer pr ON
+                p.model = pr.model)
+SELECT maker,
+       MAX(ltprice) AS laptop,
+       MAX(pcprice) AS pc,
+       MAX(prprice) AS printer
+FROM t1
+WHERE maker IN (SELECT maker
+                FROM t1
+                WHERE COALESCE(prprice, ltprice, pcprice) IS NOT NULL)
+GROUP BY maker;
+
+-- 76.  БД 'Аэрофлот'
+-- Определить время, проведенное в полетах, для пассажиров, летавших всегда на разных местах.
+-- Вывод: имя пассажира, время в минутах.
+-- WITH t1 AS (SELECT DISTINCT id_psg
+--             FROM pass_in_trip
+--             GROUP BY id_psg, place
+--             HAVING COUNT(*) > 1)
+-- SELECT id_psg,
+--        SUM(EXTRACT(MINUTE FROM (time_in - time_out)))
+-- FROM pass_in_trip
+--          INNER JOIN trip USING (trip_no)
+--          INNER JOIN passenger USING (id_psg)
+-- WHERE id_psg NOT IN (SELECT id_psg FROM t1)
+-- GROUP BY id_psg;
+
+-- 77. Определить дни, когда было выполнено максимальное число рейсов из
+-- Ростова ('Rostov'). Вывод: число рейсов, дата.
+WITH t1 AS (SELECT COUNT(DISTINCT trip_no) AS num_trips, DATE
+            FROM trip
+                     INNER JOIN pass_in_trip USING (trip_no)
+            WHERE town_from = 'Rostov'
+            GROUP BY DATE)
+SELECT num_trips, date
+FROM t1
+WHERE num_trips = (SELECT MAX(num_trips) FROM t1);
+
+-- 78. БД 'Корабли'
+-- Для каждого сражения определить первый и последний день месяца, в котором оно состоялось.
+-- Вывод: сражение, первый день месяца, последний день месяца.
+SELECT DISTINCT name,
+                DATE_TRUNC('month', date)::date AS first,
+                (DATE_TRUNC('month', date) + INTERVAL '1 month' - INTERVAL '1 day')::date
+FROM battles;
